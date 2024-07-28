@@ -1,0 +1,24 @@
+{
+  "name": "crud-spreadsheet",
+  "version": "1.0.0",
+  "description": "A spreadsheet connected to PostgreSQL",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mx-One/CRUD-spreadsheet.git"
+  },
+  "author": "Mx.One",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mx-One/CRUD-spreadsheet/issues"
+  },
+  "homepage": "https://github.com/Mx-One/CRUD-spreadsheet#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}
