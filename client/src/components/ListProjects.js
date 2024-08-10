@@ -1,16 +1,20 @@
 import React, { Fragment, useEffect, useState } from "react";
-const ListProjects = () => {
+import AddProject from "./AddProject";
+
+const ListProjects = ({viewHandle, listView, changeProjectName, uploadData}) => {
     
-    const [projects, setProjects] = useState([])
+    const [projects, setProjects] = useState([]);
 
     const deleteProject = async (projectName) => {
         try {
-            const deleteProject = await fetch(`http://localhost:5000/projects/${projectName}`,               
+            await fetch(`http://localhost:5000/projects/${projectName}`,               
                 {
                     method: "DELETE"
                 });
         
         setProjects(projects.filter(project => project.table_name !== projectName));
+        changeProjectName("")
+        uploadData([])
 
         } catch (err) {
             console.error(err.message)
@@ -28,9 +32,44 @@ const ListProjects = () => {
         }
     }
 
+    const openProject = async (e, projectName) => {
+        e.preventDefault();
+        try {
+            const body = {projectName}
+            const response = await fetch("http://localhost:5000/openproject", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(body)
+            })
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const data = await response.json();
+            
+            const convertTo2DArray = (array) => {
+                return array.map(item => [
+                    item.tasks || '', // Convert null to an empty string for 'tasks'
+                    parseFloat(item.price) || 0, // Convert null to 0 for 'price'
+                    item.notes || '' // Convert null to an empty string for 'notes'
+                ]);
+            };
+            // console.log(convertTo2DArray(data));
+            changeProjectName(projectName)
+            uploadData(convertTo2DArray(data))
+            viewHandle(false)
+      
+        } catch (err) {
+            console.error(err.message);
+        }
+    }
+
     useEffect(() => {
-        getProjects();
-    }, [])
+        if (listView)
+            getProjects();
+    }, [listView])
+
 
     return (
         <Fragment>
@@ -42,16 +81,16 @@ const ListProjects = () => {
                     <th scope="col">Delete</th>
                 </tr>
             </thead>
-            <tbody>
-                {/* <tr>
-                <th scope="row">1</th>
-                <td>Mark</td>
-                <td>Otto</td>
-                <td>@mdo</td>
-                </tr> */}  
+            <tbody className="mt-5"> 
                 {projects.map(project => (
                     <tr key={project.table_name}>
-                        <td>{project.table_name}</td>
+                        <td> 
+                            <div 
+                            onClick={(e) => openProject(e, project.table_name)}
+                            className="glow-border">
+                                {project.table_name}
+                            </div>
+                        </td>
                         <td>
                             <h6>Edit</h6>
                             {/* <EditTodo todo={todo}/> */}
@@ -60,7 +99,11 @@ const ListProjects = () => {
                     </tr>
                 ))}
             </tbody>
-            </table>  
+            </table>
+            <AddProject 
+                viewHandle={viewHandle} 
+                changeProjectName={changeProjectName}
+                uploadData={uploadData}/>  
         </Fragment>
     )
 }
