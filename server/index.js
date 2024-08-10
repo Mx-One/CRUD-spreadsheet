@@ -7,7 +7,7 @@ const pool = require("./db");
 app.use(cors());    
 app.use(express.json());
 
-//get all todos
+//get all projects
 app.get("/projects", async (req,res) => {
   try 
   {
@@ -20,122 +20,146 @@ app.get("/projects", async (req,res) => {
   }
 });
 
+//get a table for a project
+app.post("/openproject", async (req,res) => {
+  try 
+  {
+    const {projectName} = req.body
+    const project = await pool.query(`SELECT * FROM "${projectName}" ORDER BY id;`);
+    res.json(project.rows);
+  } 
+  catch(err) 
+  {
+    console.error(err.message);
+  }
+});
+
+//add a project
+app.post("/addproject", async (req, res) => {
+  try {
+    const { project } = req.body;
+
+    // Check if the table already exists
+    const checkTable = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = '${project}'
+      );
+    `);
+
+    const tableExists = checkTable.rows[0].exists;
+
+    if (tableExists) {
+      return res.status(400).json({ message: "The project with this name already exists. Choose a different name." });
+    }
+
+    // Create the table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE "${project}" 
+      (
+        id SERIAL PRIMARY KEY,
+        Tasks TEXT, 
+        Price NUMERIC,
+        Notes TEXT
+      );
+    `);
+
+    // Insert empty rows if fewer than 5 rows exist
+    for (let i = 0; i < 5; i++) {
+      await pool.query(`INSERT INTO "${project}" (Tasks, Price, Notes) VALUES (NULL, NULL, NULL);`);
+    }
+
+    res.status(200).json({ message: `${project} table created successfully with 5 empty rows` });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+
+//update spreadsheet
+app.post("/updatespreadsheet", async (req, res) => {
+  try {
+    const [dataChanges, projectName] = req.body;
+
+    // Map column indexes to column names
+    const columnMapping = {
+      '0': 'tasks',
+      '1': 'price',
+      '2': 'notes',
+    };
+    
+    // Array to store SQL queries
+    const queries = [];
+
+    // Loop through each column in dataChanges
+    dataChanges.forEach((column, colIndex) => {
+      // Get the column name based on the column index
+      const columnName = columnMapping[colIndex];
+      
+      // Skip if the column name is not found
+      if (!columnName) return;
+
+      // Loop through each row in the column object
+      Object.entries(column).forEach(([rowIndex, value]) => {
+        // Construct the SQL query for each row update
+
+        const query = `
+          INSERT INTO "${projectName}" (id, "${columnName}")
+          VALUES ($2, $1)
+          ON CONFLICT (id)
+          DO UPDATE SET 
+            "${columnName}" = EXCLUDED."${columnName}";
+        `;
+        
+        // Add the query to the array with the appropriate values
+        queries.push({
+          query,
+          values: [value, parseInt(rowIndex) + 1] // Assuming rowIndex is 0-based and needs to be 1-based for `id`
+        });
+      });
+    });
+
+    // console.log(await queries)
+    // Execute all queries
+    await Promise.all(
+      queries.map(({ query, values }) =>
+        pool.query(query, values)
+      )
+    );
+
+    res.json({ message: "Data updated successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+// ------------------------------------------------------------------- //
+function escapeIdentifier(identifier) {
+  // Double quotes around the identifier, escaping any internal double quotes
+  return '"' + identifier.replace(/"/g, '""') + '"';
+}
+
+//delete a project
+app.delete("/projects/:table_name", async (req,res) => {
+  try {
+    const projectName = req.params.table_name;
+    const deleteProject = await pool.query(`DROP TABLE IF EXISTS ${escapeIdentifier(projectName)};`);
+    res.json("Project was deleted");
+  } catch (err) {
+      console.error(err.message);
+  }
+})
+// ------------------------------------------------------------------- //
+
 app.set('port', (process.env.PORT || 5000));
 
 app.listen(app.get('port'), function() {
     console.log('Node app is running on port', app.get('port'));
   });
-
-
-  //create a new item in the spreadsheet
-// app.post("/createItem", async (req, res) => {
-//   try 
-//   {
-//     const { 
-//       slabName, 
-//       finish, 
-//       supplier, 
-//       sf, 
-//       slabsQty, 
-//       ourPrice, 
-//       sellingPrice, 
-//       ourTotal, 
-//       clientsTotal, 
-//       notes } = req.body;
-    
-//     // Construct the SQL query dynamically based on the provided columns
-//     const columns = [];
-//     const values = [];
-//     const placeholders = [];
-
-//     if (slabName) {
-//       columns.push('"Slab name"');
-//       values.push(slabName);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (finish) {
-//       columns.push('Finish');
-//       values.push(finish);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (supplier) {
-//       columns.push('Supplier');
-//       values.push(supplier);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (sf) {
-//       columns.push('SF');
-//       values.push(sf);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (slabsQty) {
-//       columns.push('"Slabs q-ty"');
-//       values.push(slabsQty);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (ourPrice) {
-//       columns.push('"Our price"');
-//       values.push(ourPrice);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (sellingPrice) {
-//       columns.push('"Selling price"');
-//       values.push(sellingPrice);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (ourTotal) {
-//       columns.push('"Our TOTAL"');
-//       values.push(ourTotal);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (clientsTotal) {
-//       columns.push('"Client\'s TOTAL"');
-//       values.push(clientsTotal);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-//     if (notes) {
-//       columns.push('Notes');
-//       values.push(notes);
-//       placeholders.push(`$${placeholders.length + 1}`);
-//     }
-
-//     // Ensure at least one column is provided
-//     if (columns.length === 0) {
-//       return res.status(400).json({ error: 'At least one column value must be provided' });
-//     }
-
-//     const query = `INSERT INTO spreadsheet (${columns.join(', ')}) VALUES(${placeholders.join(', ')}) RETURNING *`;
-
-//     const createItem = await pool.query(
-//       `INSERT INTO spreadsheet 
-//       ("Slab name", 
-//       Finish, 
-//       Supplier, 
-//       SF, 
-//       "Slabs q-ty", 
-//       "Our price", 
-//       "Selling price", 
-//       "Our TOTAL", 
-//       "Client's TOTAL", 
-//       Notes) 
-//       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-//       [
-//         slabName, 
-//         finish, 
-//         supplier, 
-//         sf, 
-//         slabsQty, 
-//         ourPrice, 
-//         sellingPrice, 
-//         ourTotal, 
-//         clientsTotal, 
-//         notes
-//       ]
-//     );
-//     res.json(createItem.rows[0]);
-//   } 
-//   catch (err) 
-//   {
-//     console.error(err.message);
-//   }
-// });
