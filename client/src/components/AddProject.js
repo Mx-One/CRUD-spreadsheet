@@ -8,13 +8,15 @@ const AddProject = ({viewHandle, changeProjectName, uploadData}) => {
         e.preventDefault();
         try {
             const body = {project}
-            await fetch("http://localhost:5000/addproject", {
+            const response = await fetch("http://localhost:5000/addproject", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(body)
             })
             changeProjectName(project)
-            uploadData([])
+            
+            const data = await response.json();
+            uploadData(data); 
             viewHandle(false);
         } catch (err) {
             console.error(err.message);

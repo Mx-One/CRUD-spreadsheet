@@ -48,16 +48,8 @@ const ListProjects = ({viewHandle, listView, changeProjectName, uploadData}) => 
 
             const data = await response.json();
             
-            const convertTo2DArray = (array) => {
-                return array.map(item => [
-                    item.tasks || '', // Convert null to an empty string for 'tasks'
-                    parseFloat(item.price) || 0, // Convert null to 0 for 'price'
-                    item.notes || '' // Convert null to an empty string for 'notes'
-                ]);
-            };
-            // console.log(convertTo2DArray(data));
             changeProjectName(projectName)
-            uploadData(convertTo2DArray(data))
+            uploadData(data)
             viewHandle(false)
       
         } catch (err) {

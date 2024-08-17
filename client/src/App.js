@@ -32,12 +32,14 @@ function App() {
               viewHandle={viewHandle}
               listView={listView}
               uploadData={uploadData}
-              changeProjectName={changeProjectName}
+              changeProjectName={changeProjectName} 
             /> 
           </Fragment>) : 
           (<Fragment>
             <div className="text-center mt-10">
-              <Spreadsheet data={data} projectName={projectName}/> 
+              <Spreadsheet 
+                data={data} 
+                projectName={projectName}/> 
             </div>
             <div className="text-center mt-5"> 
               <button className="btn btn-light btn-lg" onClick={() => viewHandle(true)}>Back</button>

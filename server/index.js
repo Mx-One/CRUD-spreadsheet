@@ -59,86 +59,24 @@ app.post("/addproject", async (req, res) => {
       CREATE TABLE "${project}" 
       (
         id SERIAL PRIMARY KEY,
-        Tasks TEXT, 
-        Price NUMERIC,
-        Notes TEXT
+        tasks TEXT, 
+        price NUMERIC,
+        notes TEXT
       );
     `);
 
     // Insert empty rows if fewer than 5 rows exist
     for (let i = 0; i < 5; i++) {
-      await pool.query(`INSERT INTO "${project}" (Tasks, Price, Notes) VALUES (NULL, NULL, NULL);`);
+      await pool.query(`INSERT INTO "${project}" (tasks, price, notes) VALUES (NULL, NULL, NULL);`);
     }
 
-    res.status(200).json({ message: `${project} table created successfully with 5 empty rows` });
+    const data = await pool.query(`SELECT * FROM "${project}" ORDER BY id;`);
+    res.json(data.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: "Server error" });
   }
 });
-
-
-
-//update spreadsheet
-app.post("/updatespreadsheet", async (req, res) => {
-  try {
-    const [dataChanges, projectName] = req.body;
-
-    // Map column indexes to column names
-    const columnMapping = {
-      '0': 'tasks',
-      '1': 'price',
-      '2': 'notes',
-    };
-    
-    // Array to store SQL queries
-    const queries = [];
-
-    // Loop through each column in dataChanges
-    dataChanges.forEach((column, colIndex) => {
-      // Get the column name based on the column index
-      const columnName = columnMapping[colIndex];
-      
-      // Skip if the column name is not found
-      if (!columnName) return;
-
-      // Loop through each row in the column object
-      Object.entries(column).forEach(([rowIndex, value]) => {
-        // Construct the SQL query for each row update
-
-        const query = `
-          INSERT INTO "${projectName}" (id, "${columnName}")
-          VALUES ($2, $1)
-          ON CONFLICT (id)
-          DO UPDATE SET 
-            "${columnName}" = EXCLUDED."${columnName}";
-        `;
-        
-        // Add the query to the array with the appropriate values
-        queries.push({
-          query,
-          values: [value, parseInt(rowIndex) + 1] // Assuming rowIndex is 0-based and needs to be 1-based for `id`
-        });
-      });
-    });
-
-    // console.log(await queries)
-    // Execute all queries
-    await Promise.all(
-      queries.map(({ query, values }) =>
-        pool.query(query, values)
-      )
-    );
-
-    res.json({ message: "Data updated successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
 
 // ------------------------------------------------------------------- //
 function escapeIdentifier(identifier) {
@@ -150,13 +88,66 @@ function escapeIdentifier(identifier) {
 app.delete("/projects/:table_name", async (req,res) => {
   try {
     const projectName = req.params.table_name;
-    const deleteProject = await pool.query(`DROP TABLE IF EXISTS ${escapeIdentifier(projectName)};`);
+    await pool.query(`DROP TABLE IF EXISTS ${escapeIdentifier(projectName)};`);
     res.json("Project was deleted");
   } catch (err) {
       console.error(err.message);
   }
 })
 // ------------------------------------------------------------------- //
+
+
+//re-write table
+app.post("/onsave", async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const [data, projectName] = req.body;
+    // console.log(data, projectName);
+
+    // Start transaction
+    await client.query('BEGIN');
+
+    // Drop table if it exists
+    await client.query(`DROP TABLE IF EXISTS ${escapeIdentifier(projectName)}`);
+
+    // Create new table
+    await client.query(`
+      CREATE TABLE "${projectName}" 
+      (
+        id SERIAL PRIMARY KEY,
+        tasks TEXT, 
+        price NUMERIC,
+        notes TEXT
+      );
+    `);
+
+    // Insert rows
+    for (const row of data) {
+      const priceValue = typeof row[1] === 'string'
+        ? parseFloat(row[1].replace(/[^0-9.-]+/g, ''))
+        : parseFloat(row[1]) || null;
+
+      await client.query(
+        `INSERT INTO "${projectName}" (tasks, price, notes) VALUES ($1, $2, $3)`,
+        [row[0] || null, priceValue || null, row[2] || null]
+      );
+    }
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    res.status(200).json({ message: 'Spreadsheet updated successfully' });
+  } catch (err) {
+    // Rollback transaction on error
+    await client.query('ROLLBACK');
+    console.error('Error updating spreadsheet:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    client.release();
+  }
+});
+
 
 app.set('port', (process.env.PORT || 5000));
 

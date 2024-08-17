@@ -4,42 +4,28 @@ import jspreadsheet from "jspreadsheet-ce";
 // eslint-disable-next-line no-unused-vars
 import jexcel from "jexcel"; // Required to correctly render the context menu
 import "jspreadsheet-ce/dist/jspreadsheet.css";
- 
 
 export default function Spreadsheet({data, projectName}) {
 
-  const dataArr = data
-  const dataChanges = [{}, {}, {}];  //Create an empty array with three objects where each object represent a column
-
-  const updateData = (change) => {
-    for (const [col, rows] of Object.entries(change)) {
-      if (!dataChanges[col]) {
-        dataChanges[col] = {}; // Initialize column if it does not exist
-      }
-      
-      // Update each row in the column
-      for (let [row, value] of Object.entries(rows)) {
-
-        // Remove any non-numeric characters except for the decimal point
-        if (col === "1") {
-          value = parseFloat(value.replace(/[^0-9.-]+/g, ''))
-    
-        }
-        dataChanges[col][row] = value
-      }
-    }
-  };
+  const convertTo2DArray = (array) => { 
+    return array.map(item => [
+        item.tasks || '', // Convert null to an empty string for 'tasks'
+        parseFloat(item.price) || 0, // Convert null to 0 for 'price'
+        item.notes || '' // Convert null to an empty string for 'notes'
+    ]);
+};
+  const dataArr = convertTo2DArray(data) // Convert the data array to a 2D array
 
   const onSave = async e => {
     e.preventDefault();
     try {
-        const body = [dataChanges, projectName]
-        await fetch("http://localhost:5000/updatespreadsheet", {
+        const body = [dataArr, projectName]
+        await fetch("http://localhost:5000/onsave", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify(body)
         })
-        console.log(dataChanges)
+        // console.log(dataArr)
     } catch (err) {
         console.error(err.message);
     }
@@ -96,12 +82,11 @@ function formatCurrency(value) {
    columnSorting: false,
    allowInsertColumn:false,
    allowManualInsertColumn:false,
+   rowDrag: false,
    onchange: (instance, cell,  col, row, value) => {
     if (col === '1') countSum(jRef, Number(col));
-    updateData({[col]: {[row]: value}});
-  }
-
-  };
+  },
+};
  
   useEffect(() => {
     if (!jRef.current.jspreadsheet) {
@@ -109,9 +94,11 @@ function formatCurrency(value) {
     }
     jRef.current.jspreadsheet.options.footers[0][1] = countSum(jRef, 1)
     jRef.current.jspreadsheet.refresh()
+    // jRef.current.jspreadsheet.getCell(`A1`)
+    // jRef.current.jexcel.setMeta(data)
+    // console.log(jRef.current.jspreadsheet.getMeta())
   }, [options]);
 
-  
   const addRow = () => {
     jRef.current.jexcel.insertRow();
   };
