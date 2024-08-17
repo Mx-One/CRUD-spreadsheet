@@ -1,2 +1,2 @@
 # CRUD-spreadsheet
-A spreadsheet connected to PostgreSQL.
+A list of spreadsheets connected to PostgreSQL.
