@@ -7,6 +7,21 @@ const pool = require("./db");
 app.use(cors());    
 app.use(express.json());
 
+
+/**
+ * Escapes a SQL identifier by wrapping it in double quotes and replacing any internal double quotes with double-double quotes.
+ *
+ * @param {string} identifier - The SQL identifier to be escaped.
+ * @return {string} The escaped SQL identifier.
+ */
+function escapeIdentifier(identifier) {
+  // Double quotes around the identifier, escaping any internal double quotes
+  return '"' + identifier.replace(/"/g, '""') + '"';
+}
+
+
+//ROUTES//
+
 //get all projects
 app.get("/projects", async (req,res) => {
   try 
@@ -20,7 +35,7 @@ app.get("/projects", async (req,res) => {
   }
 });
 
-//get a table for a project
+//open a spreadsheet of a project
 app.post("/openproject", async (req,res) => {
   try 
   {
@@ -34,11 +49,23 @@ app.post("/openproject", async (req,res) => {
   }
 });
 
+//update project name
+app.put("/projects/:table_name", async (req,res) => {
+  try {
+    const { projectName: newProjectName, project: oldProjectName } = req.body
+    const updateTodo = await pool.query(`ALTER TABLE ${escapeIdentifier(oldProjectName)} RENAME TO ${escapeIdentifier(newProjectName)};`);
+    res.json("Project name was updated");
+  } 
+  catch(err) {
+    console.error(err.message);
+  }
+})
+
 //add a project
 app.post("/addproject", async (req, res) => {
   try {
     const { project } = req.body;
-
+  
     // Check if the table already exists
     const checkTable = await pool.query(`
       SELECT EXISTS (
@@ -79,17 +106,15 @@ app.post("/addproject", async (req, res) => {
 });
 
 // ------------------------------------------------------------------- //
-function escapeIdentifier(identifier) {
-  // Double quotes around the identifier, escaping any internal double quotes
-  return '"' + identifier.replace(/"/g, '""') + '"';
-}
 
 //delete a project
 app.delete("/projects/:table_name", async (req,res) => {
   try {
-    const projectName = req.params.table_name;
+    const projectName = req.params.table_name
     await pool.query(`DROP TABLE IF EXISTS ${escapeIdentifier(projectName)};`);
+
     res.json("Project was deleted");
+    
   } catch (err) {
       console.error(err.message);
   }
@@ -97,13 +122,12 @@ app.delete("/projects/:table_name", async (req,res) => {
 // ------------------------------------------------------------------- //
 
 
-//re-write table
+//save a project
 app.post("/onsave", async (req, res) => {
   const client = await pool.connect();
 
   try {
     const [data, projectName] = req.body;
-    // console.log(data, projectName);
 
     // Start transaction
     await client.query('BEGIN');
@@ -147,6 +171,7 @@ app.post("/onsave", async (req, res) => {
     client.release();
   }
 });
+
 
 
 app.set('port', (process.env.PORT || 5000));

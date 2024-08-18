@@ -25,12 +25,10 @@ export default function Spreadsheet({data, projectName}) {
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify(body)
         })
-        // console.log(dataArr)
     } catch (err) {
         console.error(err.message);
     }
 }
-
 
   function isNumber(value) {
     return typeof value === 'number' && !isNaN(value);
@@ -94,9 +92,6 @@ function formatCurrency(value) {
     }
     jRef.current.jspreadsheet.options.footers[0][1] = countSum(jRef, 1)
     jRef.current.jspreadsheet.refresh()
-    // jRef.current.jspreadsheet.getCell(`A1`)
-    // jRef.current.jexcel.setMeta(data)
-    // console.log(jRef.current.jspreadsheet.getMeta())
   }, [options]);
 
   const addRow = () => {

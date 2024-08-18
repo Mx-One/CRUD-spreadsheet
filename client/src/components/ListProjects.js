@@ -1,5 +1,6 @@
 import React, { Fragment, useEffect, useState } from "react";
 import AddProject from "./AddProject";
+import EditProject from "./EditProject";
 
 const ListProjects = ({viewHandle, listView, changeProjectName, uploadData}) => {
     
@@ -46,7 +47,7 @@ const ListProjects = ({viewHandle, listView, changeProjectName, uploadData}) => 
                 throw new Error('Network response was not ok');
             }
 
-            const data = await response.json();
+            const data = await response.json(); 
             
             changeProjectName(projectName)
             uploadData(data)
@@ -84,8 +85,8 @@ const ListProjects = ({viewHandle, listView, changeProjectName, uploadData}) => 
                             </div>
                         </td>
                         <td>
-                            <h6>Edit</h6>
-                            {/* <EditTodo todo={todo}/> */}
+                            <EditProject 
+                            project={project.table_name}/>
                         </td>
                         <td><button className="btn btn-danger" onClick={() => deleteProject(project.table_name)}>Delete</button></td>
                     </tr>

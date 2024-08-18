@@ -7,13 +7,17 @@ const AddProject = ({viewHandle, changeProjectName, uploadData}) => {
     const OnSubmitForm = async e => {
         e.preventDefault();
         try {
-            const body = {project}
+            // Trim the project name before sending it
+            const trimmedProjectName = project.trim();
+            const body = { project: trimmedProjectName };
+
             const response = await fetch("http://localhost:5000/addproject", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(body)
-            })
-            changeProjectName(project)
+            });
+
+            changeProjectName(trimmedProjectName);
             
             const data = await response.json();
             uploadData(data); 
@@ -26,11 +30,11 @@ const AddProject = ({viewHandle, changeProjectName, uploadData}) => {
     return (
     <Fragment>  
         <div className="text-center mt-5">   
-            <button type="button" className="btn btn-outline-primary btn-lg" data-toggle="modal" data-target="#modal">
+            <button type="button" className="btn btn-outline-primary btn-lg" data-toggle="modal" data-target="#modal1">
                 Add Project
             </button>
         </div>
-        <div className="modal" id="modal" onClick={e => addProject("")}>
+        <div className="modal" id="modal1" onClick={e => addProject("")}>
         <div className="modal-dialog">
             <div className="modal-content">
 
